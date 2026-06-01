@@ -1,25 +1,42 @@
 import { useNet } from "../net/useNet";
+import { AuthScreen } from "./AuthScreen";
 import { Lobby } from "./Lobby";
 import { GameBoard } from "../game/GameBoard";
+import { Avatar } from "../profile/Avatar";
 import "./OnlineApp.css";
 
-export function OnlineApp({ name }: { name: string }) {
-  const net = useNet(name);
+export function OnlineApp() {
+  const net = useNet();
+  const showMe = net.profile && (net.phase === "lobby" || net.phase === "waiting");
 
   return (
     <div className="online">
+      {net.phase === "connecting" && <p className="online__hint">连接服务器中…</p>}
+
+      {net.phase === "auth" && (
+        <AuthScreen error={net.authError} onGuest={net.guest} onLogin={net.login} onRegister={net.register} />
+      )}
+
+      {showMe && net.profile && (
+        <div className="online__me">
+          <Avatar id={net.profile.avatar} size={32} />
+          <span className="online__me-name">{net.profile.nickname}</span>
+          <button className="online__logout" onClick={net.logout}>退出登录</button>
+        </div>
+      )}
+
       {net.note && net.phase !== "game" && (
         <div className="online__note" onClick={net.clearNote}>{net.note}<span className="online__note-x">×</span></div>
       )}
+
       {net.incoming && (
         <div className="invite">
+          <Avatar id={net.incoming.fromAvatar} size={32} />
           <span><b>{net.incoming.fromName}</b> 邀请你对战</span>
           <button className="invite__yes" onClick={net.acceptInvite}>接受</button>
           <button className="invite__no" onClick={net.declineInvite}>拒绝</button>
         </div>
       )}
-
-      {net.phase === "connecting" && <p className="online__hint">连接服务器中…</p>}
 
       {net.phase === "lobby" && (
         <Lobby myId={net.myId} lobby={net.lobby} onCreate={net.createRoom} onJoin={net.joinRoom} onInvite={net.invitePlayer} />
@@ -39,7 +56,8 @@ export function OnlineApp({ name }: { name: string }) {
           submit={net.submit}
           enabled={net.enabled}
           mySide={net.game.mySide}
-          opponentName={net.game.opponentName}
+          opponent={net.game.opponent}
+          myProfile={net.profile ?? undefined}
           onRematch={net.rematch}
           onLeave={net.leaveRoom}
           note={net.note || undefined}

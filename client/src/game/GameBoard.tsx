@@ -1,7 +1,8 @@
-import type { Action, GameState, Side } from "@cs/shared";
+import { otherSide, type Action, type GameState, type Side, type Profile } from "@cs/shared";
 import { Board } from "../board/Board";
 import { Hands } from "./Hands";
 import { PromotionDialog } from "./PromotionDialog";
+import { Avatar } from "../profile/Avatar";
 import { useBoardInteraction } from "./useBoardInteraction";
 import "./GameBoard.css";
 
@@ -10,17 +11,18 @@ export interface GameBoardProps {
   submit: (a: Action) => void;
   enabled: boolean;
   mySide?: Side;          // 联机:本方执边
-  opponentName?: string;  // 联机:对手名
+  opponent?: Profile;     // 联机:对手档案
+  myProfile?: Profile;    // 联机:本方档案
   onReset?: () => void;   // 本地:重新开局
   onRematch?: () => void; // 联机:再来一局
   onLeave?: () => void;   // 联机:离开房间
-  note?: string;          // 提示(如对方掉线)
+  note?: string;
 }
 
 const sideName = (s: Side) => (s === "chess" ? "国象方" : "将棋方");
 
 export function GameBoard(props: GameBoardProps) {
-  const { state, submit, enabled, mySide, opponentName, onReset, onRematch, onLeave, note } = props;
+  const { state, submit, enabled, mySide, opponent, myProfile, onReset, onRematch, onLeave, note } = props;
   const ui = useBoardInteraction(state, submit, enabled);
   const result = state.result;
   const online = !!mySide;
@@ -31,13 +33,27 @@ export function GameBoard(props: GameBoardProps) {
       ? "和棋"
       : `${sideName(result.winner)}胜 · ${result.reason === "checkmate" ? "将死" : "擒王"}`;
   } else if (online) {
-    banner = enabled ? `你的回合(执${sideName(mySide!)})` : `等待对手(${opponentName ?? "对方"})落子…`;
+    banner = enabled ? `你的回合(执${sideName(mySide!)})` : `等待 ${opponent?.nickname ?? "对手"} 落子…`;
   } else {
     banner = `轮到 ${sideName(state.turn)}`;
   }
 
   return (
     <div className="game">
+      {online && mySide && (
+        <div className="game__players">
+          <span className={`game__player${enabled ? " game__player--turn" : ""}`}>
+            {myProfile && <Avatar id={myProfile.avatar} size={30} />}
+            <span>{myProfile?.nickname ?? "你"} · 执{sideName(mySide)}</span>
+          </span>
+          <span className="game__vs">VS</span>
+          <span className={`game__player${!enabled && !result ? " game__player--turn" : ""}`}>
+            {opponent && <Avatar id={opponent.avatar} size={30} />}
+            <span>{opponent?.nickname ?? "对手"} · 执{sideName(otherSide(mySide))}</span>
+          </span>
+        </div>
+      )}
+
       <div className="game__bar">
         <span className={`game__status${result ? " game__status--result" : ` game__turn--${state.turn}`}`}>
           {result ? "🏁 " : "● "}{banner}

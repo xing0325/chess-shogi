@@ -5,11 +5,14 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { Server } from "socket.io";
 import { attachGameServer } from "./gameServer";
+import { AuthStore } from "./auth";
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
-attachGameServer(io);
+
+const dataDir = process.env.DATA_DIR || path.resolve(process.cwd(), "data");
+attachGameServer(io, new AuthStore(dataDir));
 
 // 生产环境:同一服务托管构建好的前端
 const dirname = path.dirname(fileURLToPath(import.meta.url));

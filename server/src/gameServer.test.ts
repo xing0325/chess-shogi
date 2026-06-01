@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import os from "node:os";
 import { Server } from "socket.io";
 import { io as Client, type Socket } from "socket.io-client";
 import { attachGameServer } from "./gameServer";
+import { AuthStore } from "./auth";
 import { EV, type GameStartMsg, type LobbySnapshot } from "@cs/shared";
 
 describe("game server (两客户端联机)", () => {
@@ -13,7 +15,7 @@ describe("game server (两客户端联机)", () => {
   beforeAll(async () => {
     httpServer = http.createServer();
     const io = new Server(httpServer, { cors: { origin: "*" } });
-    attachGameServer(io);
+    attachGameServer(io, new AuthStore(os.tmpdir()));
     await new Promise<void>((r) => httpServer.listen(0, r));
     port = (httpServer.address() as AddressInfo).port;
   });
@@ -42,7 +44,7 @@ describe("game server (两客户端联机)", () => {
     const [sa, sb] = await Promise.all([aStart, bStart]);
     expect(sa.mySide).toBe("chess");
     expect(sb.mySide).toBe("shogi");
-    expect(sa.opponentName).toBe("乙");
+    expect(sa.opponent.nickname).toBe("乙");
 
     const aState = once<{ state: GameStartMsg["state"] }>(a, EV.gameState);
     const bState = once<{ state: GameStartMsg["state"] }>(b, EV.gameState);

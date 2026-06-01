@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { LobbySnapshot, Side } from "@cs/shared";
+import { Avatar } from "../profile/Avatar";
 import "./Lobby.css";
 
 const sideLabel = (s: Side | "random") => (s === "chess" ? "国象" : s === "shogi" ? "将棋" : "随机");
@@ -39,6 +40,7 @@ export function Lobby({ myId, lobby, onCreate, onJoin, onInvite }: LobbyProps) {
         <ul className="lobby__list">
           {lobby.rooms.map((r) => (
             <li key={r.id} className="lobby__row">
+              <Avatar id={r.hostAvatar} size={34} />
               <span className="lobby__name">{r.hostName}</span>
               <span className="lobby__meta">加入后你执 {sideLabel(r.openSide)}</span>
               <button className="lobby__act" onClick={() => onJoin(r.id)}>加入</button>
@@ -53,6 +55,7 @@ export function Lobby({ myId, lobby, onCreate, onJoin, onInvite }: LobbyProps) {
         <ul className="lobby__list">
           {others.map((p) => (
             <li key={p.id} className="lobby__row">
+              <Avatar id={p.avatar} size={34} />
               <span className="lobby__name">{p.name}</span>
               <span className={`lobby__status lobby__status--${p.status}`}>
                 {p.status === "playing" ? "对局中" : "空闲"}

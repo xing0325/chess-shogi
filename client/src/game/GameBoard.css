@@ -5,6 +5,31 @@
   width: 100%;
 }
 
+.game__players {
+  width: min(92vmin, 720px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.game__player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #cbb88e;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.game__player--turn {
+  color: #f3e6c9;
+  border-color: #d8a657;
+  background: rgba(216, 166, 87, 0.12);
+}
+.game__vs { font-size: 12px; color: #8b7c5e; font-weight: 700; }
+
 .game__bar {
   width: min(92vmin, 720px);
   display: flex;
