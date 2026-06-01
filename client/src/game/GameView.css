@@ -1,0 +1,43 @@
+.game {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.game__bar {
+  width: min(92vmin, 720px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 6px 4px;
+}
+
+.game__turn {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.game__turn--chess { color: #f0d9b5; }
+.game__turn--shogi { color: #e8b964; }
+
+.game__result {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #ffd86b;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+
+.game__reset {
+  background: #4a3a22;
+  color: #ecdcbd;
+  border: 1px solid #6a572f;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.game__reset:hover { background: #5c4928; }

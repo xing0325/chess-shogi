@@ -36,3 +36,23 @@
   font-size: clamp(12px, 4.6vmin, 34px);
   color: #2a1606;
 }
+
+/* 升变红字 */
+.koma--promoted {
+  color: #b8231a;
+}
+
+/* 打入的国象子:五边形木牌里嵌国象图案 */
+.piece--captured {
+  position: relative;
+  align-items: center;
+  background: linear-gradient(160deg, #f3d49a 0%, #e3b56b 60%, #d09a4f 100%);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4), inset 0 0 0 2px rgba(184, 35, 26, 0.55);
+}
+.piece__inset {
+  width: 66%;
+  height: 66%;
+  object-fit: contain;
+  margin-top: 6%;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
