@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: chess-shogi
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    envVars:
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: NODE_VERSION
+        value: "20"
