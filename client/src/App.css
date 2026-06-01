@@ -1,0 +1,56 @@
+.app {
+  min-height: 100%;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #3a3128 0%, #241d18 60%, #1a1511 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 28px 16px 40px;
+  color: #e8dcc6;
+}
+
+.app__header { text-align: center; }
+
+.app__title {
+  margin: 0;
+  font-size: clamp(28px, 6vmin, 52px);
+  letter-spacing: 0.08em;
+  color: #f3e6c9;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.app__x {
+  color: #d8a657;
+  margin: 0 0.1em;
+}
+
+.app__subtitle {
+  margin: 6px 0 0;
+  font-size: clamp(12px, 2.4vmin, 16px);
+  letter-spacing: 0.3em;
+  color: #b9a883;
+}
+
+.app__footer {
+  display: flex;
+  gap: 14px;
+}
+
+.tag {
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  letter-spacing: 0.15em;
+  font-weight: 700;
+}
+
+.tag--chess {
+  background: #f0d9b5;
+  color: #5a3d22;
+}
+
+.tag--shogi {
+  background: #dcab5c;
+  color: #3a2410;
+}
