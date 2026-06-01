@@ -248,6 +248,22 @@ export function status(state: GameState): GameResult | undefined {
   return computeResult(state);
 }
 
+// 服务器权威校验:某动作是否在当前合法动作集中
+export function isLegalAction(state: GameState, a: Action): boolean {
+  const acts = legalActions(state);
+  if (a.type === "drop") {
+    return acts.some((b) => b.type === "drop" && b.kind === a.kind
+      && b.fromChess === a.fromChess && sameSq(b.to, a.to));
+  }
+  // 国象兵升变:目标 kind 任选 Q/R/B/N,只要该 from→to 升变步合法
+  if (a.promoteTo) {
+    if (!(["Q", "R", "B", "N"] as string[]).includes(a.promoteTo)) return false;
+    return acts.some((b) => b.type === "move" && sameSq(b.from, a.from) && sameSq(b.to, a.to) && !!b.promoteTo);
+  }
+  return acts.some((b) => b.type === "move" && sameSq(b.from, a.from)
+    && sameSq(b.to, a.to) && !!b.promote === !!a.promote && !b.promoteTo);
+}
+
 function computeResult(state: GameState): GameResult | undefined {
   const pos = state.position;
   if (kingCount(pos, "chess") === 0) return { kind: "win", winner: "shogi", reason: "king-captured" };
