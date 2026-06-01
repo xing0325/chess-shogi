@@ -23,6 +23,19 @@
   cursor: pointer;
 }
 .app__back:hover { background: #4a3a22; }
+.app__skins {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  background: #3a2f1d;
+  border: 1px solid #5a4a32;
+  color: #e8d4ac;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.app__skins:hover { background: #4a3a22; }
 .app__title {
   margin: 0;
   font-size: clamp(26px, 5.5vmin, 48px);

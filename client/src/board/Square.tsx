@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { squareStyleKind, THEME } from "./boardTheme";
+import { squareStyleKind } from "./boardTheme";
+import { useSkins } from "../skins/SkinContext";
 
 export interface SquareProps {
   file: number;
@@ -13,12 +14,13 @@ export interface SquareProps {
 }
 
 export function Square({ file, rank, children, selected, isDest, isCapture, isLast, onClick }: SquareProps) {
+  const { theme } = useSkins();
   const kind = squareStyleKind(file, rank);
   const bg = {
-    wood: (file + rank) % 2 === 0 ? THEME.woodDark : THEME.woodLight,
-    light: THEME.chessLight,
-    dark: THEME.chessDark,
-    river: THEME.river,
+    wood: (file + rank) % 2 === 0 ? theme.woodDark : theme.woodLight,
+    light: theme.chessLight,
+    dark: theme.chessDark,
+    river: theme.river,
   }[kind];
   const cls = [
     "sq", `sq--${kind}`,

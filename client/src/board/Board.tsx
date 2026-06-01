@@ -1,6 +1,7 @@
 import { BOARD_SIZE, idx, type Position, type Square as Sq } from "@cs/shared";
 import { Square } from "./Square";
 import { Piece } from "./Piece";
+import { useSkins } from "../skins/SkinContext";
 import "./Board.css";
 
 export interface BoardProps {
@@ -12,6 +13,7 @@ export interface BoardProps {
 }
 
 export function Board({ position, selected, destinations = [], lastMove, onCellClick }: BoardProps) {
+  const { theme } = useSkins();
   const destSet = new Set(destinations.map((d) => idx(d.file, d.rank)));
   const cells = [];
   for (let rank = BOARD_SIZE - 1; rank >= 0; rank--) {
@@ -37,7 +39,7 @@ export function Board({ position, selected, destinations = [], lastMove, onCellC
   }
   return (
     <div className="board-wrap">
-      <div className="board">{cells}</div>
+      <div className="board" style={{ borderColor: theme.border, background: theme.border }}>{cells}</div>
       <div className="river-label" aria-hidden>
         <span>楚 河</span>
         <span>汉 界</span>
