@@ -1,0 +1,82 @@
+.lobby {
+  width: min(92vmin, 620px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lobby__panel {
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+
+.lobby__h {
+  margin: 0 0 10px;
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  color: #e8d4ac;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lobby__count {
+  font-size: 12px;
+  background: #4a3a22;
+  color: #e8d4ac;
+  border-radius: 10px;
+  padding: 1px 9px;
+}
+
+.lobby__create { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: #cbb88e; font-size: 14px; }
+.chip {
+  background: #3a2f1d;
+  border: 1px solid #5a4a32;
+  color: #d8c8a4;
+  border-radius: 999px;
+  padding: 5px 14px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.chip--on { background: #8a5a1c; border-color: #b07a2c; color: #fff; }
+.lobby__create-btn {
+  margin-left: auto;
+  background: #8a5a1c;
+  border: 1px solid #b07a2c;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 16px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.lobby__create-btn:hover { background: #a06a22; }
+
+.lobby__empty { color: #8b7c5e; font-size: 13px; margin: 4px 0 0; }
+.lobby__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lobby__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.lobby__name { font-weight: 700; color: #f0e2c4; }
+.lobby__meta { font-size: 12px; color: #b0a07c; }
+.lobby__status { font-size: 12px; margin-left: auto; }
+.lobby__status--idle { color: #7fc77f; }
+.lobby__status--playing { color: #c79a6a; }
+.lobby__act {
+  background: #4a3a22;
+  border: 1px solid #6a572f;
+  color: #ecdcbd;
+  border-radius: 7px;
+  padding: 5px 14px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.lobby__row .lobby__status + .lobby__act { margin-left: 0; }
+.lobby__list .lobby__meta { margin-left: auto; }
+.lobby__act:hover:not(:disabled) { background: #5c4928; }
+.lobby__act:disabled { opacity: 0.45; cursor: default; }

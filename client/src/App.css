@@ -1,56 +1,95 @@
 .app {
   min-height: 100%;
-  background:
-    radial-gradient(1200px 600px at 50% -10%, #3a3128 0%, #241d18 60%, #1a1511 100%);
+  background: radial-gradient(1200px 600px at 50% -10%, #3a3128 0%, #241d18 60%, #1a1511 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 18px;
-  padding: 28px 16px 40px;
+  padding: 24px 16px 40px;
   color: #e8dcc6;
 }
 
-.app__header { text-align: center; }
-
+.app__header { text-align: center; position: relative; width: 100%; }
+.app__back {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  background: #3a2f1d;
+  border: 1px solid #5a4a32;
+  color: #e8d4ac;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.app__back:hover { background: #4a3a22; }
 .app__title {
   margin: 0;
-  font-size: clamp(28px, 6vmin, 52px);
+  font-size: clamp(26px, 5.5vmin, 48px);
   letter-spacing: 0.08em;
   color: #f3e6c9;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
+.app__x { color: #d8a657; margin: 0 0.1em; }
+.app__subtitle { margin: 6px 0 0; font-size: clamp(12px, 2.4vmin, 16px); letter-spacing: 0.3em; color: #b9a883; }
 
-.app__x {
-  color: #d8a657;
-  margin: 0 0.1em;
-}
-
-.app__subtitle {
-  margin: 6px 0 0;
-  font-size: clamp(12px, 2.4vmin, 16px);
-  letter-spacing: 0.3em;
-  color: #b9a883;
-}
-
-.app__footer {
+/* 首页选择 */
+.home {
   display: flex;
-  gap: 14px;
+  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 18px;
 }
+.home__card {
+  width: 260px;
+  min-height: 180px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+.home__card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4); border-color: #b07a2c; }
+.home__card--online { cursor: default; }
+.home__card--online:hover { transform: none; }
 
-.tag {
-  font-size: 13px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  letter-spacing: 0.15em;
+.home__accent { width: 48px; height: 8px; border-radius: 6px; }
+.home__accent--wood { background: linear-gradient(90deg, #e6c489, #caa05f); }
+.home__accent--board { background: linear-gradient(90deg, #f0d9b5 50%, #b58863 50%); }
+
+.home__t { font-size: 20px; font-weight: 800; color: #f3e6c9; letter-spacing: 0.06em; }
+.home__d { font-size: 13px; color: #b9a883; }
+
+.home__form { margin-top: auto; display: flex; gap: 8px; width: 100%; }
+.home__input {
+  flex: 1;
+  background: #1f1813;
+  border: 1px solid #5a4a32;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #f0e2c4;
+  font-size: 14px;
+  min-width: 0;
+}
+.home__input:focus { outline: none; border-color: #b07a2c; }
+.home__go {
+  background: #8a5a1c;
+  border: 1px solid #b07a2c;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
   font-weight: 700;
+  white-space: nowrap;
 }
-
-.tag--chess {
-  background: #f0d9b5;
-  color: #5a3d22;
-}
-
-.tag--shogi {
-  background: #dcab5c;
-  color: #3a2410;
-}
+.home__go:hover:not(:disabled) { background: #a06a22; }
+.home__go:disabled { opacity: 0.45; cursor: default; }

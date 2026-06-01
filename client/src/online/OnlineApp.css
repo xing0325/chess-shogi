@@ -1,0 +1,51 @@
+.online {
+  width: min(92vmin, 720px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.online__hint { color: #cbb88e; padding: 30px; }
+
+.online__note {
+  background: #5a3a1c;
+  border: 1px solid #b07a2c;
+  color: #ffeede;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.online__note-x { opacity: 0.6; margin-left: 8px; }
+
+.invite {
+  background: #2c2620;
+  border: 1px solid #b07a2c;
+  border-radius: 10px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #ecdcbd;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.invite__yes { background: #8a5a1c; border: none; color: #fff; border-radius: 7px; padding: 6px 16px; cursor: pointer; font-weight: 700; }
+.invite__no { background: #4a3a22; border: 1px solid #6a572f; color: #ecdcbd; border-radius: 7px; padding: 6px 16px; cursor: pointer; }
+
+.online__wait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 50px 0;
+  color: #cbb88e;
+}
+.online__spinner {
+  width: 42px;
+  height: 42px;
+  border: 4px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #d8a657;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

@@ -1,5 +1,5 @@
 import type { ChessKind } from "@cs/shared";
-import type { PendingPromo } from "./useGame";
+import type { PendingPromo } from "./useBoardInteraction";
 import "./PromotionDialog.css";
 
 const CHESS_CHOICES: { kind: ChessKind; label: string; svg: string }[] = [
