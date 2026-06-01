@@ -1,0 +1,11 @@
+{
+  "name": "chess-shogi",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": ["shared", "client"],
+  "scripts": {
+    "dev": "npm run dev --workspace client",
+    "build": "npm run build --workspace client",
+    "test": "npm run test --workspaces --if-present"
+  }
+}
