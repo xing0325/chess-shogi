@@ -1,9 +1,10 @@
 .hands {
-  width: min(92vmin, 720px);
+  width: min(92vmin, 720px, calc(100vh - 210px));
   margin: 10px auto 0;
-  padding: 8px 12px;
+  padding: 7px 12px;
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.25);
+  background: linear-gradient(180deg, rgba(74, 58, 38, 0.55), rgba(44, 34, 22, 0.55));
+  border: 1px solid rgba(120, 92, 56, 0.5);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -11,28 +12,29 @@
   transition: box-shadow 0.2s;
 }
 .hands--active {
-  box-shadow: 0 0 0 2px rgba(216, 166, 87, 0.8), 0 0 18px rgba(216, 166, 87, 0.35);
+  box-shadow: 0 0 0 2px rgba(216, 166, 87, 0.85), 0 0 18px rgba(216, 166, 87, 0.35);
 }
 .hands__label {
   font-size: 13px;
   letter-spacing: 0.15em;
-  color: #d8c39a;
+  color: #e7d2a4;
   white-space: nowrap;
+  flex: 0 0 auto;
 }
 .hands__tray {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   align-items: center;
 }
 .hands__empty {
   font-size: 12px;
-  color: #8b7c5e;
+  color: #9a8a68;
 }
 .hands__piece {
   position: relative;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   padding: 0;
   border: none;
   background: transparent;
@@ -41,21 +43,28 @@
   align-items: center;
   justify-content: center;
   border-radius: 8px;
+  transition: transform 0.1s;
 }
-.hands__piece:disabled { cursor: default; opacity: 0.85; }
+.hands__piece:not(:disabled):hover { transform: translateY(-2px); }
+.hands__piece:disabled { cursor: default; opacity: 0.9; }
 .hands__piece--sel {
   background: rgba(255, 214, 102, 0.5);
-  box-shadow: inset 0 0 0 2px rgba(255, 184, 0, 0.9);
+  box-shadow: inset 0 0 0 2px rgba(255, 184, 0, 0.95);
 }
+/* 数量角标:右上角白底深字小圆牌(lishogi 风) */
 .hands__count {
   position: absolute;
-  right: -2px;
-  bottom: -2px;
-  background: #b8231a;
-  color: #fff;
+  right: -3px;
+  top: -3px;
+  min-width: 16px;
+  height: 16px;
+  background: #2b2622;
+  color: #ffd98a;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   border-radius: 9px;
-  padding: 0 5px;
+  padding: 0 4px;
   line-height: 16px;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }

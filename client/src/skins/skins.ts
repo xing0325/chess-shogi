@@ -23,14 +23,15 @@ export const CHESS_SETS: ChessSet[] = [
   { id: "alpha", name: "Alpha" },
 ];
 
-export interface ShogiStyle { id: string; name: string; bg: string; text: string }
+export type ShogiGlyph = "single" | "double";
+export interface ShogiStyle { id: string; name: string; bg: string; text: string; glyph: ShogiGlyph }
 export const SHOGI_STYLES: ShogiStyle[] = [
-  { id: "wood", name: "榧木", bg: "linear-gradient(160deg, #f6e0ad 0%, #ecc77f 55%, #dcab5c 100%)", text: "#3a2410" },
-  { id: "ebony", name: "黑檀", bg: "linear-gradient(160deg, #6e5638 0%, #4a3a22 55%, #352a18 100%)", text: "#f2e3c4" },
+  { id: "kanji1", name: "一文字 · 榧木", bg: "linear-gradient(160deg, #f6e0ad 0%, #ecc77f 55%, #dcab5c 100%)", text: "#2a1606", glyph: "single" },
+  { id: "kanji2", name: "二文字 · 古印", bg: "linear-gradient(157deg, #f0d49a 0%, #e2b96f 52%, #cf9f50 100%)", text: "#241204", glyph: "double" },
 ];
 
 export interface Skins { board: string; chessSet: string; shogiStyle: string }
-export const DEFAULT_SKINS: Skins = { board: "classic", chessSet: "chess", shogiStyle: "wood" };
+export const DEFAULT_SKINS: Skins = { board: "classic", chessSet: "chess", shogiStyle: "kanji1" };
 
 export const SKINS_KEY = "cs_skins";
 

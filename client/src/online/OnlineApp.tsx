@@ -1,7 +1,7 @@
 import { useNet } from "../net/useNet";
 import { AuthScreen } from "./AuthScreen";
 import { Lobby } from "./Lobby";
-import { GameBoard } from "../game/GameBoard";
+import { GameView } from "../game/GameView";
 import { Avatar } from "../profile/Avatar";
 import "./OnlineApp.css";
 
@@ -51,10 +51,12 @@ export function OnlineApp() {
       )}
 
       {net.phase === "game" && net.game && (
-        <GameBoard
-          state={net.game.state}
+        <GameView
+          live={net.game.state}
           submit={net.submit}
-          enabled={net.enabled}
+          canPlay={net.enabled}
+          resetKey={`online-${net.gameNonce}`}
+          basePerspective={net.game.mySide}
           mySide={net.game.mySide}
           opponent={net.game.opponent}
           myProfile={net.profile ?? undefined}

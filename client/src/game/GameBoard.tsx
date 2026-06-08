@@ -1,4 +1,5 @@
 import { otherSide, type Action, type GameState, type Side, type Profile } from "@cs/shared";
+// perspective: 谁在棋盘下方
 import { Board } from "../board/Board";
 import { Hands } from "./Hands";
 import { PromotionDialog } from "./PromotionDialog";
@@ -17,12 +18,14 @@ export interface GameBoardProps {
   onRematch?: () => void; // 联机:再来一局
   onLeave?: () => void;   // 联机:离开房间
   note?: string;
+  perspective?: Side;     // 谁在下方(默认将棋方)
+  replay?: boolean;       // 正在回放历史(非最新)
 }
 
 const sideName = (s: Side) => (s === "chess" ? "国象方" : "将棋方");
 
 export function GameBoard(props: GameBoardProps) {
-  const { state, submit, enabled, mySide, opponent, myProfile, onReset, onRematch, onLeave, note } = props;
+  const { state, submit, enabled, mySide, opponent, myProfile, onReset, onRematch, onLeave, note, perspective, replay } = props;
   const ui = useBoardInteraction(state, submit, enabled);
   const result = state.result;
   const online = !!mySide;
@@ -59,6 +62,7 @@ export function GameBoard(props: GameBoardProps) {
           {result ? "🏁 " : "● "}{banner}
         </span>
         <div className="game__controls">
+          {replay && <span className="game__note game__note--replay">🔁 回放中 · 点 ⏭ 回到最新</span>}
           {note && <span className="game__note">{note}</span>}
           {!online && onReset && <button className="game__btn" onClick={onReset}>重新开局</button>}
           {online && result && onRematch && <button className="game__btn game__btn--accent" onClick={onRematch}>再来一局</button>}
@@ -71,6 +75,7 @@ export function GameBoard(props: GameBoardProps) {
         selected={ui.selectedSquare}
         destinations={ui.destinations}
         lastMove={state.lastMove}
+        perspective={perspective}
         onCellClick={ui.clickCell}
       />
 

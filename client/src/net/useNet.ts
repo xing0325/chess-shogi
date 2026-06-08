@@ -19,6 +19,7 @@ export function useNet() {
   const [authError, setAuthError] = useState("");
   const [lobby, setLobby] = useState<LobbySnapshot>({ players: [], rooms: [] });
   const [game, setGame] = useState<OnlineGame | null>(null);
+  const [gameNonce, setGameNonce] = useState(0);
   const [incoming, setIncoming] = useState<InviteMsg | null>(null);
   const [note, setNote] = useState("");
 
@@ -46,6 +47,7 @@ export function useNet() {
     s.on(EV.lobby, (snap: LobbySnapshot) => setLobby(snap));
     s.on(EV.gameStart, (msg: GameStartMsg) => {
       setGame({ mySide: msg.mySide, opponent: msg.opponent, state: msg.state });
+      setGameNonce((n) => n + 1);
       setIncoming(null); setNote(""); setPhase("game");
     });
     s.on(EV.gameState, (d: { state: GameState }) => setGame((g) => (g ? { ...g, state: d.state } : g)));
@@ -84,7 +86,7 @@ export function useNet() {
   const enabled = !!game && !game.state.result && game.mySide === game.state.turn;
 
   return {
-    phase, myId, profile, authError, lobby, game, incoming, note, enabled,
+    phase, myId, profile, authError, lobby, game, incoming, note, enabled, gameNonce,
     guest, login, register, updateProfile, logout,
     createRoom, joinRoom, invitePlayer, acceptInvite, declineInvite,
     submit, leaveRoom, rematch, cancelWaiting, clearNote: () => setNote(""),

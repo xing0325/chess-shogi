@@ -1,0 +1,14 @@
+.gameview {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+}
+.gameview__main { flex: 0 1 auto; min-width: 0; }
+
+/* 窄屏:棋谱面板移到棋盘下方 */
+@media (max-width: 760px) {
+  .gameview { flex-direction: column; align-items: center; }
+  .mh { width: min(92vw, 460px); max-height: 240px; }
+}
