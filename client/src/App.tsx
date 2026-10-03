@@ -4,6 +4,8 @@ import { OnlineApp } from "./online/OnlineApp";
 import { SkinSettings } from "./skins/SkinSettings";
 import "./App.css";
 
+const staticDemo = import.meta.env.VITE_STATIC_DEMO === "true";
+
 type Screen = "home" | "local" | "online";
 
 export default function App() {
@@ -29,11 +31,12 @@ export default function App() {
             <span className="home__t">本地对战</span>
             <span className="home__d">同一台设备,两人轮流走子</span>
           </button>
-          <button className="home__card" onClick={() => setScreen("online")}>
+          {!staticDemo && <button className="home__card" onClick={() => setScreen("online")}>
             <span className="home__accent home__accent--board" />
             <span className="home__t">联机大厅</span>
             <span className="home__d">注册/游客登录 · 开房 · 邀请在线玩家</span>
-          </button>
+          </button>}
+          {staticDemo && <p>公开试玩支持同屏双人对战。联机大厅需另行部署服务端。</p>}
         </div>
       )}
 

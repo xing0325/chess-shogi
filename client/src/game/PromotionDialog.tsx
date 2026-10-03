@@ -3,10 +3,10 @@ import type { PendingPromo } from "./useBoardInteraction";
 import "./PromotionDialog.css";
 
 const CHESS_CHOICES: { kind: ChessKind; label: string; svg: string }[] = [
-  { kind: "Q", label: "后", svg: "/pieces/chess/wQ.svg" },
-  { kind: "R", label: "车", svg: "/pieces/chess/wR.svg" },
-  { kind: "B", label: "象", svg: "/pieces/chess/wB.svg" },
-  { kind: "N", label: "马", svg: "/pieces/chess/wN.svg" },
+  { kind: "Q", label: "后", svg: import.meta.env.BASE_URL + "pieces/chess/wQ.svg" },
+  { kind: "R", label: "车", svg: import.meta.env.BASE_URL + "pieces/chess/wR.svg" },
+  { kind: "B", label: "象", svg: import.meta.env.BASE_URL + "pieces/chess/wB.svg" },
+  { kind: "N", label: "马", svg: import.meta.env.BASE_URL + "pieces/chess/wN.svg" },
 ];
 
 export interface PromotionDialogProps {

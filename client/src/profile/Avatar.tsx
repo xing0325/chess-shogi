@@ -3,12 +3,12 @@ import "./Avatar.css";
 interface AvatarDef { bg: string; kanji?: string; svg?: string }
 
 const DEFS: Record<string, AvatarDef> = {
-  wK: { bg: "#c0392b", svg: "/pieces/chess/wK.svg" },
-  wQ: { bg: "#8e44ad", svg: "/pieces/chess/wQ.svg" },
-  wR: { bg: "#2c7a7b", svg: "/pieces/chess/wR.svg" },
-  wB: { bg: "#2f855a", svg: "/pieces/chess/wB.svg" },
-  wN: { bg: "#b7791f", svg: "/pieces/chess/wN.svg" },
-  wP: { bg: "#2b6cb0", svg: "/pieces/chess/wP.svg" },
+  wK: { bg: "#c0392b", svg: import.meta.env.BASE_URL + "pieces/chess/wK.svg" },
+  wQ: { bg: "#8e44ad", svg: import.meta.env.BASE_URL + "pieces/chess/wQ.svg" },
+  wR: { bg: "#2c7a7b", svg: import.meta.env.BASE_URL + "pieces/chess/wR.svg" },
+  wB: { bg: "#2f855a", svg: import.meta.env.BASE_URL + "pieces/chess/wB.svg" },
+  wN: { bg: "#b7791f", svg: import.meta.env.BASE_URL + "pieces/chess/wN.svg" },
+  wP: { bg: "#2b6cb0", svg: import.meta.env.BASE_URL + "pieces/chess/wP.svg" },
   OU: { bg: "#6b46c1", kanji: "玉" },
   HI: { bg: "#c05621", kanji: "飛" },
   KAKU: { bg: "#2c5282", kanji: "角" },

@@ -33,7 +33,7 @@ export function SkinSettings({ onClose }: { onClose: () => void }) {
           <div className="skins__row">
             {CHESS_SETS.map((s) => (
               <button key={s.id} className={`skins__opt${skins.chessSet === s.id ? " skins__opt--on" : ""}`} onClick={() => setSkin({ chessSet: s.id })}>
-                <img className="skins__chess" src={`/pieces/${s.id}/wN.svg`} alt="" />
+                <img className="skins__chess" src={`${import.meta.env.BASE_URL}pieces/${s.id}/wN.svg`} alt="" />
                 <span className="skins__name">{s.name}</span>
               </button>
             ))}

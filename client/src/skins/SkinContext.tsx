@@ -30,7 +30,7 @@ export function SkinProvider({ children }: { children: ReactNode }) {
     setSkin,
     theme: boardTheme(skins.board),
     shogi: shogiStyle(skins.shogiStyle),
-    chessSrc: (kind: string) => `/pieces/${skins.chessSet}/w${kind}.svg`,
+    chessSrc: (kind: string) => `${import.meta.env.BASE_URL}pieces/${skins.chessSet}/w${kind}.svg`,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
