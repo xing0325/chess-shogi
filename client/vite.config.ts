@@ -11,6 +11,11 @@ export default defineConfig({
   },
   server: {
     fs: { allow: [path.resolve(__dirname, "..")] },
+    host: true,
+    allowedHosts: true,
+    proxy: {
+      "/socket.io": { target: `http://localhost:${process.env.SERVER_PORT ?? 3001}`, ws: true },
+    },
   },
   test: {
     environment: "jsdom",

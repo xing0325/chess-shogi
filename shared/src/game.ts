@@ -24,7 +24,7 @@ export type Action = BoardMove | DropMove;
 // ---- 手牌 / 对局状态 ----
 export interface HandGroup { kind: PieceKind; fromChess: boolean; count: number }
 export type GameResult =
-  | { kind: "win"; winner: Side; reason: "checkmate" | "king-captured" }
+  | { kind: "win"; winner: Side; reason: "checkmate" | "king-captured" | "resign" | "abandon" }
   | { kind: "draw" };
 
 export interface GameState {
@@ -250,6 +250,7 @@ export function status(state: GameState): GameResult | undefined {
 
 // 服务器权威校验:某动作是否在当前合法动作集中
 export function isLegalAction(state: GameState, a: Action): boolean {
+  if (!isActionShape(a)) return false;
   const acts = legalActions(state);
   if (a.type === "drop") {
     return acts.some((b) => b.type === "drop" && b.kind === a.kind
@@ -262,6 +263,28 @@ export function isLegalAction(state: GameState, a: Action): boolean {
   }
   return acts.some((b) => b.type === "move" && sameSq(b.from, a.from)
     && sameSq(b.to, a.to) && !!b.promote === !!a.promote && !b.promoteTo);
+}
+
+// 校验来自网络的动作结构(防止畸形数据让引擎抛异常)
+function isSquareShape(s: unknown): s is Square {
+  if (!s || typeof s !== "object") return false;
+  const q = s as Record<string, unknown>;
+  return Number.isInteger(q.file) && Number.isInteger(q.rank)
+    && inBounds(q.file as number, q.rank as number);
+}
+export function isActionShape(a: unknown): a is Action {
+  if (!a || typeof a !== "object") return false;
+  const x = a as Record<string, unknown>;
+  if (x.type === "move") {
+    if (!isSquareShape(x.from) || !isSquareShape(x.to)) return false;
+    if (x.promote !== undefined && typeof x.promote !== "boolean") return false;
+    if (x.promoteTo !== undefined && !(["Q", "R", "B", "N"] as unknown[]).includes(x.promoteTo)) return false;
+    return true;
+  }
+  if (x.type === "drop") {
+    return typeof x.kind === "string" && typeof x.fromChess === "boolean" && isSquareShape(x.to);
+  }
+  return false;
 }
 
 function computeResult(state: GameState): GameResult | undefined {

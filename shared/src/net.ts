@@ -1,5 +1,5 @@
 import type { Side } from "./types";
-import type { GameState } from "./game";
+import type { Action, GameState } from "./game";
 
 // 玩家档案:昵称 + 头像 id
 export interface Profile {
@@ -49,6 +49,14 @@ export interface GameStartMsg {
   mySide: Side;
   opponent: Profile;
   state: GameState;
+  history?: Action[];      // 本局已走的着法(断线重连时用于恢复棋谱)
+  reconnected?: boolean;   // true = 这是重连恢复,而非新开局
+}
+
+// 对手连接状态
+export interface OpponentStatusMsg {
+  connected: boolean;
+  graceMs?: number;        // 掉线时:保留座位的毫秒数
 }
 
 // 登录/注册成功返回
@@ -80,12 +88,16 @@ export const EV = {
   declineInvite: "invite:decline",
   move: "game:move",
   rematch: "game:rematch",
+  resign: "game:resign",
   // server -> client
+  sessionId: "session:id",
   lobby: "lobby:update",
   incomingInvite: "invite:incoming",
   inviteDeclined: "invite:declined",
   gameStart: "game:start",
   gameState: "game:state",
   opponentLeft: "opponent:left",
+  opponentStatus: "opponent:status",
+  rematchRequested: "game:rematch-requested",
   errorMsg: "server:error",
 } as const;

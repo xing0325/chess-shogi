@@ -9,7 +9,10 @@ const staticDemo = import.meta.env.VITE_STATIC_DEMO === "true";
 type Screen = "home" | "local" | "online";
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("home");
+  const [screen, setScreenRaw] = useState<Screen>(() => {
+    try { const s = sessionStorage.getItem("cs_screen"); return s === "local" || s === "online" ? s : "home"; } catch { return "home"; }
+  });
+  const setScreen = (s: Screen) => { setScreenRaw(s); try { sessionStorage.setItem("cs_screen", s); } catch { /* ignore */ } };
   const [skinsOpen, setSkinsOpen] = useState(false);
 
   return (

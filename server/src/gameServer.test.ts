@@ -6,7 +6,7 @@ import { Server } from "socket.io";
 import { io as Client, type Socket } from "socket.io-client";
 import { attachGameServer } from "./gameServer";
 import { AuthStore } from "./auth";
-import { EV, type GameStartMsg, type LobbySnapshot } from "@cs/shared";
+import { EV, type GameStartMsg, type GameState, type LobbySnapshot } from "@cs/shared";
 
 describe("game server (两客户端联机)", () => {
   let httpServer: http.Server;
@@ -15,13 +15,13 @@ describe("game server (两客户端联机)", () => {
   beforeAll(async () => {
     httpServer = http.createServer();
     const io = new Server(httpServer, { cors: { origin: "*" } });
-    attachGameServer(io, new AuthStore(os.tmpdir()));
+    attachGameServer(io, new AuthStore(os.tmpdir()), { graceMs: 400 });
     await new Promise<void>((r) => httpServer.listen(0, r));
     port = (httpServer.address() as AddressInfo).port;
   });
   afterAll(() => { httpServer.close(); });
 
-  const connect = (): Socket => Client(`http://localhost:${port}`, { transports: ["websocket"], forceNew: true });
+  const connect = (cid?: string): Socket => Client(`http://localhost:${port}`, { transports: ["websocket"], forceNew: true, auth: cid ? { cid } : {} });
   const once = <T>(s: Socket, ev: string): Promise<T> => new Promise((res) => s.once(ev, res as () => void));
 
   it("建房+加入 → 双方收到 gameStart;合法着法同步给双方", async () => {
@@ -76,6 +76,87 @@ describe("game server (两客户端联机)", () => {
     b.emit(EV.move, { action: { type: "move", from: { file: 4, rank: 2 }, to: { file: 4, rank: 3 } } });
     expect(await err).toContain("轮");
 
+    a.close(); b.close();
+  }, 20000);
+  /** 两个游客开局,返回双方 socket、会话 id 和 gameStart 消息(甲执国象) */
+  async function startPair(tag: string) {
+    const a = connect(), b = connect();
+    const [aid, bid] = await Promise.all([once<string>(a, EV.sessionId), once<string>(b, EV.sessionId)]);
+    a.emit(EV.authGuest, { nickname: "甲" + tag, avatar: "wP" });
+    b.emit(EV.authGuest, { nickname: "乙" + tag, avatar: "FU" });
+    await Promise.all([once(a, EV.authResult), once(b, EV.authResult)]);
+    const aStart = once<GameStartMsg>(a, EV.gameStart);
+    const bStart = once<GameStartMsg>(b, EV.gameStart);
+    a.emit(EV.createRoom, { side: "chess" });
+    const snap = await new Promise<LobbySnapshot>((res) => {
+      const h = (s: LobbySnapshot) => { const r = s.rooms.find((x) => x.hostName === "甲" + tag); if (r) { b.off(EV.lobby, h); res({ ...s, rooms: [r] }); } };
+      b.on(EV.lobby, h);
+    });
+    b.emit(EV.joinRoom, { roomId: snap.rooms[0].id });
+    await Promise.all([aStart, bStart]);
+    return { a, b, aid, bid };
+  }
+  const e2e4 = { type: "move", from: { file: 4, rank: 7 }, to: { file: 4, rank: 5 } };
+
+  it("畸形着法不会让服务崩溃,之后正常着法仍可用", async () => {
+    const { a, b } = await startPair("x");
+    const errs: string[] = [];
+    a.on(EV.errorMsg, (m: string) => errs.push(m));
+    for (const bad of [{ type: "move" }, { type: "move", from: { file: 99, rank: -1 }, to: null }, "garbage", null, { type: "drop", kind: 3 }]) {
+      a.emit(EV.move, { action: bad });
+    }
+    a.emit(EV.move, null);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(errs.length).toBeGreaterThanOrEqual(5);
+    const st = once<{ state: GameState }>(b, EV.gameState);
+    a.emit(EV.move, { action: e2e4 });
+    expect((await st).state.turn).toBe("shogi");
+    a.close(); b.close();
+  }, 20000);
+
+  it("对局中刷新(同会话 id 重连)→ 回到原对局并拿到棋谱", async () => {
+    const { a, b, bid } = await startPair("r");
+    const st = once<{ state: GameState }>(b, EV.gameState);
+    a.emit(EV.move, { action: e2e4 });
+    await st;
+    const down = once<{ connected: boolean }>(a, EV.opponentStatus);
+    b.close();
+    expect((await down).connected).toBe(false);
+    const b2 = connect(bid);
+    const up = once<{ connected: boolean }>(a, EV.opponentStatus);
+    const start = await once<GameStartMsg>(b2, EV.gameStart);
+    expect(start.reconnected).toBe(true);
+    expect(start.mySide).toBe("shogi");
+    expect(start.history?.length).toBe(1);
+    expect(start.state.turn).toBe("shogi");
+    expect((await up).connected).toBe(true);
+    a.close(); b2.close();
+  }, 20000);
+
+  it("掉线超过保留时间 → 对手获胜(abandon)", async () => {
+    const { a, b } = await startPair("t");
+    const st = new Promise<GameState>((res) => a.on(EV.gameState, (d: { state: GameState }) => { if (d.state.result) res(d.state); }));
+    b.close();
+    const s = await st;
+    expect(s.result).toEqual({ kind: "win", winner: "chess", reason: "abandon" });
+    a.close();
+  }, 20000);
+
+  it("认输 + 再来一局需要双方同意", async () => {
+    const { a, b } = await startPair("s");
+    const st = once<{ state: GameState }>(a, EV.gameState);
+    b.emit(EV.resign);
+    expect((await st).state.result).toEqual({ kind: "win", winner: "chess", reason: "resign" });
+    let restarted = false;
+    a.on(EV.gameStart, () => { restarted = true; });
+    const asked = once<{ fromName: string }>(b, EV.rematchRequested);
+    a.emit(EV.rematch);
+    expect((await asked).fromName).toBe("甲s");
+    await new Promise((r) => setTimeout(r, 150));
+    expect(restarted).toBe(false);
+    const again = once<GameStartMsg>(a, EV.gameStart);
+    b.emit(EV.rematch);
+    expect((await again).state.result).toBeUndefined();
     a.close(); b.close();
   }, 20000);
 });

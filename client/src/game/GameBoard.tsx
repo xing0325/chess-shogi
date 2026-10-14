@@ -16,6 +16,8 @@ export interface GameBoardProps {
   myProfile?: Profile;    // 联机:本方档案
   onReset?: () => void;   // 本地:重新开局
   onRematch?: () => void; // 联机:再来一局
+  onResign?: () => void;  // 联机:认输
+  rematchAsked?: boolean; // 联机:对手已请求再来一局
   onLeave?: () => void;   // 联机:离开房间
   note?: string;
   perspective?: Side;     // 谁在下方(默认将棋方)
@@ -23,9 +25,10 @@ export interface GameBoardProps {
 }
 
 const sideName = (s: Side) => (s === "chess" ? "国象方" : "将棋方");
+const REASON = { checkmate: "将死", "king-captured": "擒王", resign: "认输", abandon: "对方离开" } as const;
 
 export function GameBoard(props: GameBoardProps) {
-  const { state, submit, enabled, mySide, opponent, myProfile, onReset, onRematch, onLeave, note, perspective, replay } = props;
+  const { state, submit, enabled, mySide, opponent, myProfile, onReset, onRematch, onResign, rematchAsked, onLeave, note, perspective, replay } = props;
   const ui = useBoardInteraction(state, submit, enabled);
   const result = state.result;
   const online = !!mySide;
@@ -34,7 +37,7 @@ export function GameBoard(props: GameBoardProps) {
   if (result) {
     banner = result.kind === "draw"
       ? "和棋"
-      : `${sideName(result.winner)}胜 · ${result.reason === "checkmate" ? "将死" : "擒王"}`;
+      : `${sideName(result.winner)}胜 · ${REASON[result.reason]}`;
   } else if (online) {
     banner = enabled ? `你的回合(执${sideName(mySide!)})` : `等待 ${opponent?.nickname ?? "对手"} 落子…`;
   } else {
@@ -65,7 +68,8 @@ export function GameBoard(props: GameBoardProps) {
           {replay && <span className="game__note game__note--replay">🔁 回放中 · 点 ⏭ 回到最新</span>}
           {note && <span className="game__note">{note}</span>}
           {!online && onReset && <button className="game__btn" onClick={onReset}>重新开局</button>}
-          {online && result && onRematch && <button className="game__btn game__btn--accent" onClick={onRematch}>再来一局</button>}
+          {online && !result && onResign && <button className="game__btn" onClick={onResign}>认输</button>}
+          {online && result && onRematch && <button className="game__btn game__btn--accent" onClick={onRematch}>{rematchAsked ? "同意再来一局" : "再来一局"}</button>}
           {online && onLeave && <button className="game__btn" onClick={onLeave}>离开</button>}
         </div>
       </div>

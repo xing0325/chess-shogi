@@ -12,6 +12,9 @@ interface UserRecord {
 }
 
 const SECRET = process.env.AUTH_SECRET || "dev-secret-chess-shogi";
+if (!process.env.AUTH_SECRET && process.env.NODE_ENV === "production") {
+  console.warn("[chess-shogi] AUTH_SECRET 未设置,正在使用开发用默认密钥;正式部署请设置该环境变量。");
+}
 
 function hashPassword(pw: string, salt = randomBytes(16).toString("hex")): { salt: string; hash: string } {
   return { salt, hash: scryptSync(pw, salt, 64).toString("hex") };

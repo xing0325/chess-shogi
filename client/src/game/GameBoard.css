@@ -6,7 +6,8 @@
 }
 
 .game__players {
-  width: min(92vmin, 720px);
+  width: min(92vmin, 720px, calc(100vh - 210px));
+  max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -31,7 +32,8 @@
 .game__vs { font-size: 12px; color: #8b7c5e; font-weight: 700; }
 
 .game__bar {
-  width: min(92vmin, 720px);
+  width: min(92vmin, 720px, calc(100vh - 210px));
+  max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;

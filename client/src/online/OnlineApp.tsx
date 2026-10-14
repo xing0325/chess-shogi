@@ -61,6 +61,9 @@ export function OnlineApp() {
           opponent={net.game.opponent}
           myProfile={net.profile ?? undefined}
           onRematch={net.rematch}
+          onResign={net.resign}
+          rematchAsked={net.rematchAsked}
+          seed={net.game.seed}
           onLeave={net.leaveRoom}
           note={net.note || undefined}
         />

@@ -16,13 +16,16 @@ export interface GameViewProps {
   myProfile?: Profile;
   onReset?: () => void;
   onRematch?: () => void;
+  onResign?: () => void;
+  rematchAsked?: boolean;
+  seed?: GameState[];      // 重连时恢复的历史快照
   onLeave?: () => void;
   note?: string;
 }
 
 export function GameView(props: GameViewProps) {
   const { live, submit, canPlay, resetKey, basePerspective } = props;
-  const hist = useHistory(live, resetKey);
+  const hist = useHistory(live, resetKey, props.seed);
   const display = hist.snaps[hist.view];
   const replay = !hist.atLatest;
   const enabled = canPlay && hist.atLatest && !live.result;
@@ -46,6 +49,8 @@ export function GameView(props: GameViewProps) {
           myProfile={props.myProfile}
           onReset={props.onReset}
           onRematch={props.onRematch}
+          onResign={props.onResign}
+          rematchAsked={props.rematchAsked}
           onLeave={props.onLeave}
           note={props.note}
         />
