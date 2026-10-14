@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:pages": "tsc --noEmit && VITE_STATIC_DEMO=true vite build --base=/chess-shogi/",
     "preview": "vite preview",
     "test": "vitest run"
   },

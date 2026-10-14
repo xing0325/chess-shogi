@@ -11,7 +11,7 @@ type Screen = "home" | "local" | "online" | "draft";
 
 export default function App() {
   const [screen, setScreenRaw] = useState<Screen>(() => {
-    try { const s = sessionStorage.getItem("cs_screen"); return s === "local" || s === "online" || s === "draft" ? s : "home"; } catch { return "home"; }
+    try { const s = sessionStorage.getItem("cs_screen"); return s === "local" || (s === "online" && !staticDemo) || s === "draft" ? s : "home"; } catch { return "home"; }
   });
   const setScreen = (s: Screen) => { setScreenRaw(s); try { sessionStorage.setItem("cs_screen", s); } catch { /* ignore */ } };
   const [skinsOpen, setSkinsOpen] = useState(false);
@@ -56,7 +56,7 @@ export default function App() {
             <span className="home__t">联机大厅</span>
             <span className="home__d">注册/游客登录 · 开房 · 邀请在线玩家</span>
           </button>}
-          {staticDemo && <p>公开试玩支持同屏双人对战。联机大厅需另行部署服务端。</p>}
+          {staticDemo && <p>公开试玩版:本地对战和大局选将都是同屏双人。联机大厅需要另行部署服务端。</p>}
         </div>
       )}
 
