@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { tk, type Profile } from "@cs/shared";
 import { PieceCard, PieceDetail, Token, type CardState } from "./PieceUI";
-import { DraftBoard } from "./DraftBoard";
+import { DraftBoard, type HandSpec } from "./DraftBoard";
 import { Avatar } from "../profile/Avatar";
 import "./draft.css";
 
@@ -48,18 +49,21 @@ export function DraftView(props: DraftViewProps) {
   const [placeKind, setPlaceKind] = useState<string | null>(null);
   const perspective: tk.TSide = mySide ?? "sente";
 
-  // 默认聚焦:BP 时第一枚可选棋子;布阵时第一枚待布棋子
+  // 布阵像打入一样:玩家自己从驹台挑棋子、挑位置;每布完一枚清空选择,不替玩家预选
   const placeSide = d.phase === "place" ? d.placeTurn : undefined;
-  const roster = placeSide ? d.toPlace[placeSide] : [];
-  useEffect(() => {
-    if (d.phase === "place" && placeSide && (mySide === null || mySide === placeSide)) {
-      const ready = roster.filter((r) => tk.placeSquares(d, placeSide, r).length > 0);
-      const k = roster.includes(tk.KING) ? tk.KING : placeKind && ready.includes(placeKind) ? placeKind : ready[0] ?? roster[0] ?? null;
-      setPlaceKind(k);
-      if (k) setFocus({ kind: k });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [d.phase, placeSide, roster.length, d.game.board]);
+  useEffect(() => { setPlaceKind(null); }, [d.phase, d.placeTurn, d.toPlace.sente.length, d.toPlace.gote.length]);
+  const blockedFor = (side: tk.TSide) => (k: string): string | null =>
+    k !== tk.KING && d.toPlace[side].includes(tk.KING) ? "第一枚必须布王将"
+      : tk.placeSquares(d, side, k).length === 0 ? "现在放哪都会将军,先布别的棋子" : null;
+  const handFor = (side: tk.TSide): HandSpec => ({
+    side,
+    kinds: d.toPlace[side],
+    active: d.phase === "place" && !d.game.result && d.placeTurn === side && (mySide === null || mySide === side),
+    blocked: blockedFor(side),
+  });
+  const other: tk.TSide = perspective === "sente" ? "gote" : "sente";
+  const hands = d.phase === "place" ? { top: handFor(other), bottom: handFor(perspective) } : undefined;
+  const placeableFor = useMemo(() => (k: string) => (placeSide ? tk.placeSquares(d, placeSide, k) : []), [d, placeSide]);
   useEffect(() => {
     if (d.phase === "draft" && (!focus || !d.pool.includes(focus.kind))) {
       const first = d.pool.find((k) => avail.has(k));
@@ -75,36 +79,22 @@ export function DraftView(props: DraftViewProps) {
   const legal = useMemo(() => (d.phase === "play" && myTurn && !d.game.result ? tk.legalMoves(d.game) : []), [d, myTurn]);
   const result = d.game.result;
 
-  // ---------- 顶部状态 ----------
-  let banner = "";
-  if (result) {
-    banner = result.kind === "draw" ? `和棋 · ${REASON[result.reason]}` : `${TEAM_NAME[tk.teamOf(result.winner)]}胜 · ${REASON[result.reason]}`;
-  } else if (d.phase === "draft" && step) {
-    const who = TEAM_NAME[step.team];
-    banner = `第 ${d.step + 1}/${tk.DRAFT_ORDER.length} 步 · ${who}${step.act === "ban" ? "禁用" : "选择"}`;
-  } else if (d.phase === "place") {
-    banner = `布阵 · ${TEAM_NAME[tk.teamOf(d.placeTurn)]}放置棋子(己方底部两行 · 先布王将 · 开局不能形成将军)`;
-  } else {
-    banner = `对局 · 轮到${TEAM_NAME[tk.teamOf(d.game.turn)]}${tk.inCheck(d.game) ? " · 被将军!" : ""}`;
-  }
-  const youTag = mySide && !result ? (myTurn ? "(你的回合)" : "(等待对手)") : "";
-
   const focusKind = focus?.kind;
   const lockLabel = step?.act === "ban" ? "禁用" : "选择";
   const canLock = d.phase === "draft" && myTurn && !!focusKind && avail.has(focusKind);
 
   return (
     <div className="dv">
-      <Timeline d={d} />
-      <div className="dv__bar">
-        <span className={`dv__status${result ? " dv__status--result" : actor ? ` dv__status--${tk.teamOf(actor)}` : ""}`}>{banner} {youTag}</span>
-        {secs !== null && !result && <span className={`dv__timer${secs <= 5 ? " dv__timer--low" : ""}`}>{secs}s</span>}
-        <span className="dv__spacer" />
-        {props.note && <span className="dv__note">{props.note}</span>}
-        {props.onReset && <button className="game__btn" onClick={props.onReset}>重新开始</button>}
-        {!result && props.onResign && <button className="game__btn" onClick={props.onResign}>认输</button>}
-        {result && props.onRematch && <button className="game__btn game__btn--accent" onClick={props.onRematch}>{props.rematchAsked ? "同意再来一局" : "再来一局"}</button>}
-        {props.onLeave && <button className="game__btn" onClick={props.onLeave}>离开</button>}
+      <SideGlow team={result ? null : actor ? tk.teamOf(actor) : null} />
+      <div className="dv__top">
+        <span className="dv__note">{props.note}</span>
+        <PhaseBanner d={d} mySide={mySide} myTurn={myTurn} secs={secs} />
+        <div className="dv__tools">
+          {props.onReset && <button className="game__btn" onClick={props.onReset}>重新开始</button>}
+          {!result && props.onResign && <button className="game__btn" onClick={props.onResign}>认输</button>}
+          {result && props.onRematch && <button className="game__btn game__btn--accent" onClick={props.onRematch}>{props.rematchAsked ? "同意再来一局" : "再来一局"}</button>}
+          {props.onLeave && <button className="game__btn" onClick={props.onLeave}>离开</button>}
+        </div>
       </div>
       <div className="dv__body">
         <TeamColumn d={d} team="blue" active={!!actor && tk.teamOf(actor) === "blue"} profile={mySide === "sente" ? props.me : mySide === "gote" ? props.opponent : undefined} you={mySide === "sente"} onInspect={setFocus} />
@@ -121,23 +111,19 @@ export function DraftView(props: DraftViewProps) {
               <DraftBoard
                 game={d.game}
                 perspective={perspective}
-                phase={result ? "view" : d.phase === "place" ? (myTurn ? "place" : "view") : "play"}
-                placeSide={myTurn ? placeSide : undefined}
-                placeKind={placeKind ?? undefined}
-                placeable={myTurn && placeSide && placeKind ? tk.placeSquares(d, placeSide, placeKind) : []}
-                onPlace={(at) => placeKind && onAction({ type: "place", kind: placeKind, at })}
+                phase={result ? "view" : d.phase === "place" ? "place" : "play"}
+                hands={hands}
+                placeKind={placeKind}
+                onPickHand={(k) => { setPlaceKind(k); if (k) setFocus({ kind: k }); }}
+                placeableFor={placeableFor}
+                onPlace={(kind, at) => onAction({ type: "place", kind, at })}
                 legal={legal}
                 onMove={(m) => onAction({ type: "move", move: { from: m.from, to: m.to, ...(m.via ? { via: m.via } : {}), ...(m.promote ? { promote: true } : {}) } })}
                 onInspect={(p) => setFocus({ kind: p.kind, from: p.from })}
               />
-              {d.phase === "place" && myTurn && placeSide && (
-                <div className="dv__roster">
-                  <span className="dv__roster-h">{mySide === null ? `${TEAM_NAME[tk.teamOf(placeSide)]}待布:` : "待布棋子:"}</span>
-                  {roster.map((k) => (
-                    <button key={k} className={`dv__rbtn${placeKind === k ? " dv__rbtn--on" : ""}`} disabled={(k !== tk.KING && roster.includes(tk.KING)) || tk.placeSquares(d, placeSide, k).length === 0} title={k !== tk.KING && roster.includes(tk.KING) ? "请先布王将" : tk.placeSquares(d, placeSide, k).length === 0 ? "现在放哪都会将军,先布别的棋子" : undefined} onClick={() => { setPlaceKind(k); setFocus({ kind: k }); }}>
-                      <Token piece={{ kind: k }} size={44} team={tk.teamOf(placeSide)} />
-                    </button>
-                  ))}
+              {d.phase === "place" && myTurn && placeSide && !placeKind && (
+                <div className="dv__placehint">
+                  {d.toPlace[placeSide].includes(tk.KING) ? "先把王将从驹台拖到棋盘上" : "从驹台挑一枚棋子,拖到己方底部两行(或点一下棋子再点格子)"}
                 </div>
               )}
             </div>
@@ -161,17 +147,55 @@ export function DraftView(props: DraftViewProps) {
   );
 }
 
-function Timeline({ d }: { d: tk.DraftState }) {
+/** 当前阶段在 BP 顺序里属于第几段(禁 → 选 → 禁 → 选),用来在换段时重放入场动画 */
+function segmentOf(step: number): number {
+  let seg = 0;
+  for (let i = 1; i <= step && i < tk.DRAFT_ORDER.length; i++) if (tk.DRAFT_ORDER[i].act !== tk.DRAFT_ORDER[i - 1].act) seg++;
+  return seg;
+}
+
+function PhaseBanner({ d, mySide, myTurn, secs }: { d: tk.DraftState; mySide: tk.TSide | null; myTurn: boolean; secs: number | null }) {
+  const result = d.game.result;
+  const step = tk.currentStep(d);
+  const actor = tk.actor(d);
+  const team = actor ? tk.teamOf(actor) : null;
+  const you = mySide && !result ? (myTurn ? " · 你的回合" : " · 等待对手") : "";
+  let kind: string, title: string, sub: string, key: string;
+  if (result) {
+    const w = result.kind === "draw" ? null : tk.teamOf(result.winner);
+    kind = w ?? "draw"; title = w ? `${TEAM_NAME[w]}胜利` : "和棋"; sub = REASON[result.reason]; key = "result";
+  } else if (d.phase === "draft" && step) {
+    kind = step.act; title = step.act === "ban" ? "禁用阶段" : "选择阶段";
+    sub = `${TEAM_NAME[step.team]}${step.act === "ban" ? "禁用" : "选择"} · 第 ${d.step + 1} / ${tk.DRAFT_ORDER.length} 步${you}`;
+    key = `draft-${segmentOf(d.step)}`;
+  } else if (d.phase === "place") {
+    kind = "place"; title = "布阵阶段"; sub = `${TEAM_NAME[tk.teamOf(d.placeTurn)]}布阵 · 己方底部两行 · 开局不能形成将军${you}`; key = "place";
+  } else {
+    kind = "play"; title = "对局阶段"; sub = `轮到${TEAM_NAME[tk.teamOf(d.game.turn)]}${tk.inCheck(d.game) ? " · 被将军!" : ""}${you}`; key = "play";
+  }
   return (
-    <div className="tl">
-      {tk.DRAFT_ORDER.map((s, i) => (
-        <span key={i} className={`tl__s tl__s--${s.team} tl__s--${s.act}${i < d.step || d.phase !== "draft" ? " tl__s--done" : ""}${i === d.step && d.phase === "draft" ? " tl__s--now" : ""}`} title={`${TEAM_NAME[s.team]}${s.act === "ban" ? "禁" : "选"}`}>
-          {s.act === "ban" ? "禁" : "选"}
-        </span>
-      ))}
-      <span className={`tl__phase${d.phase === "place" ? " tl__phase--now" : d.phase === "play" ? " tl__phase--done" : ""}`}>布阵</span>
-      <span className={`tl__phase${d.phase === "play" ? " tl__phase--now" : ""}`}>对局</span>
+    <div key={key} className={`pb pb--${kind}`} role="status" aria-live="polite">
+      <div className="pb__row">
+        <span className="pb__line pb__line--l" />
+        <span className="pb__glow"><span className="pb__title">{title}</span></span>
+        <span className="pb__line pb__line--r" />
+      </div>
+      <div className={`pb__sub${team && !result ? ` pb__sub--${team}` : ""}`}>
+        <span>{sub}</span>
+        {secs !== null && !result && <span className={`pb__timer${secs <= 5 ? " pb__timer--low" : ""}`}>{secs}s</span>}
+      </div>
     </div>
+  );
+}
+
+/** 轮到哪一方,哪半边屏幕亮起对应颜色的光(渲染到 body,避免被容器查询的包含块截住) */
+function SideGlow({ team }: { team: Team | null }) {
+  return createPortal(
+    <>
+      <div className={`sglow sglow--blue${team === "blue" ? " sglow--on" : ""}`} aria-hidden />
+      <div className={`sglow sglow--red${team === "red" ? " sglow--on" : ""}`} aria-hidden />
+    </>,
+    document.body,
   );
 }
 
