@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   KIND, KINDS, POOL_IDS, KING, emptyBoard, idx, pseudoTargets, legalMoves, applyMove, startGame,
-  newDraft, applyDraft, autoAction, actor, available, mulberry32, DRAFT_ORDER, draftError, isDraftActionShape,
+  newDraft, applyDraft, autoAction, actor, available, placeSquares, inCheck, mulberry32, DRAFT_ORDER, draftError, isDraftActionShape,
   type TPiece, type TSide, type Sq, type TMove,
 } from "./index";
 import { REACH_CENTER } from "./reach.fixture";
@@ -132,8 +132,10 @@ describe("BP 选将流程", () => {
       order.push(side);
       d = applyDraft(d, side, autoAction(d, rng)!);
     }
+    expect(d.game.board.filter((p) => p?.kind === KING).length).toBe(2);
     expect(order).toEqual(["sente", "gote", "sente", "gote", "sente", "gote", "sente", "gote", "sente", "gote", "sente", "gote"]);
     expect(d.phase).toBe("play");
+    expect(inCheck(d.game)).toBe(false);
     expect(d.game.turn).toBe("sente");
     expect(d.game.board.filter(Boolean).length).toBe(12);
     expect(legalMoves(d.game).length).toBeGreaterThan(0);
@@ -164,4 +166,34 @@ describe("BP 选将流程", () => {
     }
     expect(finished).toBe(30);
   }, 60000);
+
+  it("布阵:不能布下直接将军的棋子,王将不能放进攻击范围", () => {
+    let d = newDraft(mulberry32(5));
+    const rng = mulberry32(9);
+    while (d.phase === "draft") d = applyDraft(d, actor(d)!, autoAction(d, rng)!);
+    // 手工构造:先手王在 c1,后手放香车(只能向前直走)到 c4/c5 会直接将军
+    d = { ...d, toPlace: { sente: [], gote: ["incense-chariot"] }, placeTurn: "gote", game: { ...d.game, board: board([[2, 0, "sente", KING]]) } };
+    const sq = placeSquares(d, "gote", "incense-chariot").map(key);
+    expect(sq).not.toContain("2,3");
+    expect(sq).not.toContain("2,4");
+    expect(sq).toContain("0,4");
+    expect(draftError(d, "gote", { type: "place", kind: "incense-chariot", at: S(2, 4) })).toMatch(/将军/);
+    // 先手在 c2 有香车 → 后手王不能放 c4/c5
+    d = { ...d, toPlace: { sente: [], gote: [KING, "incense-chariot"] }, game: { ...d.game, board: board([[2, 0, "sente", KING], [2, 1, "sente", "incense-chariot"]]) } };
+    expect(placeSquares(d, "gote", KING).map(key)).not.toContain("2,4");
+    // 王将未布时不能先布别的棋子
+    expect(draftError(d, "gote", { type: "place", kind: "incense-chariot", at: S(0, 4) })).toMatch(/王将/);
+  });
+
+  it("开局时若只有后手王将被攻击,改由后手先走", () => {
+    let d = newDraft(mulberry32(3));
+    const rng = mulberry32(4);
+    while (d.phase === "draft") d = applyDraft(d, actor(d)!, autoAction(d, rng)!);
+    // 只剩后手最后一枚棋子;构造先手香车正对后手王将、且后手无法遮挡的局面
+    d = { ...d, placeTurn: "gote", toPlace: { sente: [], gote: ["gold-general"] },
+      game: { ...d.game, board: board([[0, 0, "sente", KING], [2, 1, "sente", "incense-chariot"], [2, 4, "gote", KING]]) } };
+    d = applyDraft(d, "gote", { type: "place", kind: "gold-general", at: S(0, 4) });
+    expect(d.phase).toBe("play");
+    if (!d.game.result) expect(d.game.turn).toBe("gote");
+  });
 });

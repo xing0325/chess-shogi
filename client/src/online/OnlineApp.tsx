@@ -1,16 +1,20 @@
+import { useEffect } from "react";
 import { useNet } from "../net/useNet";
 import { AuthScreen } from "./AuthScreen";
 import { Lobby } from "./Lobby";
 import { GameView } from "../game/GameView";
+import { DraftView } from "../draft/DraftView";
 import { Avatar } from "../profile/Avatar";
 import "./OnlineApp.css";
 
-export function OnlineApp() {
+export function OnlineApp({ onDraftChange }: { onDraftChange?: (on: boolean) => void } = {}) {
   const net = useNet();
+  const inDraft = net.phase === "game" && !!net.draft;
+  useEffect(() => { onDraftChange?.(inDraft); }, [inDraft, onDraftChange]);
   const showMe = net.profile && (net.phase === "lobby" || net.phase === "waiting");
 
   return (
-    <div className="online">
+    <div className={`online${net.phase === "game" && net.draft ? " online--wide" : ""}`}>
       {net.phase === "connecting" && <p className="online__hint">连接服务器中…</p>}
 
       {net.phase === "auth" && (
@@ -32,7 +36,7 @@ export function OnlineApp() {
       {net.incoming && (
         <div className="invite">
           <Avatar id={net.incoming.fromAvatar} size={32} />
-          <span><b>{net.incoming.fromName}</b> 邀请你对战</span>
+          <span><b>{net.incoming.fromName}</b> 邀请你下{net.incoming.mode === "draft" ? "「大局选将」" : "「国象×将棋」"}</span>
           <button className="invite__yes" onClick={net.acceptInvite}>接受</button>
           <button className="invite__no" onClick={net.declineInvite}>拒绝</button>
         </div>
@@ -50,6 +54,22 @@ export function OnlineApp() {
         </div>
       )}
 
+      {net.phase === "game" && net.draft && (
+        <DraftView
+          key={`draft-${net.gameNonce}`}
+          draft={net.draft.draft}
+          mySide={net.draft.mySide}
+          onAction={net.draftAction}
+          deadline={net.draft.deadline}
+          me={net.profile ?? undefined}
+          opponent={net.draft.opponent}
+          note={net.note || undefined}
+          onResign={net.resign}
+          onRematch={net.rematch}
+          rematchAsked={net.rematchAsked}
+          onLeave={net.leaveRoom}
+        />
+      )}
       {net.phase === "game" && net.game && (
         <GameView
           live={net.game.state}

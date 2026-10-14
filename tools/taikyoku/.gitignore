@@ -1,0 +1,5 @@
+__pycache__/
+*.wiki
+promotions.json
+entries.json
+compiled.json

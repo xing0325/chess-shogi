@@ -106,3 +106,5 @@
 }
 .home__go:hover:not(:disabled) { background: #a06a22; }
 .home__go:disabled { opacity: 0.45; cursor: default; }
+.home__accent--draft { background: linear-gradient(90deg, #3d7ad6 0 45%, #d8a657 45% 55%, #d64a3d 55%); }
+.home__new { font-size: 11px; background: #8a5a1c; color: #fff; border-radius: 4px; padding: 1px 5px; vertical-align: middle; margin-left: 4px; }

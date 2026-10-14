@@ -1,4 +1,4 @@
-import { KIND, KING, POOL_IDS, applyMove, emptyBoard, hasAnyMove, homeRows, idx, startGame } from "./engine";
+import { KIND, KING, POOL_IDS, applyMove, emptyBoard, hasAnyMove, homeRows, idx, kingAttacked, kingSquare, legalMoves, moveLabel, startGame } from "./engine";
 import { SIZE, otherT, type Sq, type TGame, type TMove, type TSide } from "./types";
 
 /**
@@ -111,6 +111,47 @@ export function isDraftActionShape(a: unknown): a is DraftAction {
   }
 }
 
+function freeSquares(d: DraftState, side: TSide, kind: string): Sq[] {
+  const out: Sq[] = [];
+  for (const y of homeRows(side)) for (let x = 0; x < SIZE; x++) {
+    const s = { x, y };
+    if (!d.game.board[idx(s)] && hasAnyMove(kind, side, s)) out.push(s);
+  }
+  return out;
+}
+/** 不会造成将军的格子:棋子不攻击对方王将;王将不进入对方攻击范围 */
+function safeSquares(d: DraftState, side: TSide, kind: string): Sq[] {
+  return freeSquares(d, side, kind).filter((s) => {
+    const b = d.game.board.slice();
+    b[idx(s)] = { side, kind };
+    if (kind === KING) return !kingAttacked(b, side);
+    return !kingSquare(b, otherT(side)) || !kingAttacked(b, otherT(side));
+  });
+}
+
+/**
+ * 布阵时某枚棋子可以放的格子。规则:
+ * 1. 王将必须最先布下(见 draftError)。
+ * 2. 开局不能有将军:不能布下直接攻击对方王将的棋子,王将也不能放进对方火力范围。
+ * 3. 某枚棋子放哪都会将军(如钩行者在空旷棋盘上)时,若阵容里还有别的棋子能安全布下,
+ *    这枚棋子暂时不能布(返回空),等棋盘上有了遮挡再布。
+ * 4. 若阵容里没有任何棋子能安全布下,才放宽为任意空格;若这是全场最后一步,
+ *    仍排除会让先手开局无子可动的格子。
+ */
+export function placeSquares(d: DraftState, side: TSide, kind: string): Sq[] {
+  const safe = safeSquares(d, side, kind);
+  if (safe.length) return safe;
+  if (d.toPlace[side].some((k) => k !== kind && safeSquares(d, side, k).length > 0)) return [];
+  const all = freeSquares(d, side, kind);
+  if (d.toPlace.sente.length + d.toPlace.gote.length !== 1) return all;
+  const ok = all.filter((s) => {
+    const b = d.game.board.slice();
+    b[idx(s)] = { side, kind };
+    return legalMoves(startGame(b)).length > 0;
+  });
+  return ok.length ? ok : all;
+}
+
 /** 返回错误信息;合法则返回 null */
 export function draftError(d: DraftState, side: TSide, a: DraftAction): string | null {
   if (d.game.result) return "对局已结束";
@@ -129,6 +170,10 @@ export function draftError(d: DraftState, side: TSide, a: DraftAction): string |
     if (!homeRows(side).includes(a.at.y)) return "只能布在己方底部两行";
     if (d.game.board[idx(a.at)]) return "该格已有棋子";
     if (!hasAnyMove(a.kind, side, a.at)) return "放在这里将无路可走";
+    if (a.kind !== KING && d.toPlace[side].includes(KING)) return "请先布王将";
+    const ok = placeSquares(d, side, a.kind);
+    if (!ok.length) return "这枚棋子放哪都会将军,请先布别的棋子";
+    if (!ok.some((s) => s.x === a.at.x && s.y === a.at.y)) return "开局不能形成将军:换个格子";
     return null;
   }
   if (a.type !== "move") return "现在是对局阶段";
@@ -169,11 +214,19 @@ export function applyDraft(d: DraftState, side: TSide, a: DraftAction): DraftSta
     const other = otherT(side);
     if (toPlace[other].length) n.placeTurn = other;
     else if (toPlace[side].length) n.placeTurn = side;
-    else { n.phase = "play"; n.game = startGame(board); }
+    else {
+      n.phase = "play";
+      n.game = startGame(board);
+      // 兜底(极少见,约千分之一):若只有后手王将处于被攻击状态,先手第一手就能吃王——改由后手先走
+      if (kingAttacked(board, "gote") && !kingAttacked(board, "sente")) n.game = { ...n.game, turn: "gote" };
+      if (legalMoves(n.game).length === 0) n.game = { ...n.game, result: { kind: "win", winner: otherT(n.game.turn), reason: "no-moves" } };
+    }
     return n;
   }
   const ma = a as Extract<DraftAction, { type: "move" }>;
-  return { ...d, game: applyMove(d.game, ma.move) };
+  const game = applyMove(d.game, ma.move);
+  const mark = side === "sente" ? "▲" : "△";
+  return { ...d, game, history: [...d.history, `${d.game.ply + 1}. ${mark}${moveLabel(d.game, game.lastMove!)}`] };
 }
 
 /** 超时代操作:禁用 → 空过;选择 → 随机;布阵 → 随机棋子随机格。对局阶段不计时。 */
@@ -187,12 +240,10 @@ export function autoAction(d: DraftState, rng: () => number = Math.random): Draf
     return { type: "pick", kind: av[Math.floor(rng() * av.length)] };
   }
   if (d.phase === "place") {
-    const kind = d.toPlace[side][Math.floor(rng() * d.toPlace[side].length)];
-    const free: Sq[] = [];
-    for (const y of homeRows(side)) for (let x = 0; x < SIZE; x++) {
-      const s = { x, y };
-      if (!d.game.board[idx(s)] && hasAnyMove(kind, side, s)) free.push(s);
-    }
+    const roster = d.toPlace[side];
+    const ready = roster.filter((k) => placeSquares(d, side, k).length > 0);
+    const kind = roster.includes(KING) ? KING : ready[Math.floor(rng() * ready.length)];
+    const free = placeSquares(d, side, kind);
     return { type: "place", kind, at: free[Math.floor(rng() * free.length)] };
   }
   return null;

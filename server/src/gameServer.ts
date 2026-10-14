@@ -2,8 +2,9 @@ import type { Server, Socket } from "socket.io";
 import { randomBytes } from "node:crypto";
 import {
   createInitialState, applyAction, isLegalAction, otherSide,
-  EV, type Action, type GameState, type Side, type Profile, type AuthResult,
+  EV, tk, isGameMode, type Action, type GameState, type Side, type Profile, type AuthResult,
   type PlayerInfo, type RoomInfo, type LobbySnapshot, type GameStartMsg, type OpponentStatusMsg,
+  type GameMode, type DraftStartMsg, type DraftStateMsg,
 } from "@cs/shared";
 import { AuthStore } from "./auth";
 
@@ -28,11 +29,19 @@ interface Room {
   state: GameState;
   history: Action[];                       // 本局着法(重连恢复棋谱)
   rematchVotes: Set<string>;
+  mode: GameMode;
+  // 大局选将:座位 chess = 蓝方(先手 sente),shogi = 红方(后手 gote)
+  draft?: tk.DraftState;
+  deadline?: number;
+  draftTimer?: ReturnType<typeof setTimeout>;
 }
+const tSideOfSeat = (s: Side): tk.TSide => (s === "chess" ? "sente" : "gote");
 
 export interface GameServerOptions {
   /** 对局中掉线后保留座位的毫秒数 */
   graceMs?: number;
+  /** 大局选将:每个 BP / 布阵步骤的限时(毫秒) */
+  draftStepMs?: number;
 }
 
 const CID_RE = /^[A-Za-z0-9_-]{8,64}$/;
@@ -42,12 +51,14 @@ function pick<T>(a: T, b: T): T { return Math.random() < 0.5 ? a : b; }
 
 export function attachGameServer(io: Server, store: AuthStore, opts: GameServerOptions = {}): void {
   const graceMs = opts.graceMs ?? Number(process.env.RECONNECT_GRACE_MS ?? 60000);
+  const draftStepMs = opts.draftStepMs ?? Number(process.env.DRAFT_STEP_MS ?? 30000);
   const players = new Map<string, Player>();
   const rooms = new Map<string, Room>();
   let roomSeq = 0;
   const newRoomId = (): string => `r${++roomSeq}`;
 
-  const isActive = (r: Room): boolean => !!r.guestId && !r.state.result;
+  const finished = (r: Room): boolean => (r.mode === "draft" ? !!r.draft?.game.result : !!r.state.result);
+  const isActive = (r: Room): boolean => !!r.guestId && !finished(r);
   const sideOf = (r: Room, pid: string): Side | null =>
     r.sides.chess === pid ? "chess" : r.sides.shogi === pid ? "shogi" : null;
   const opponentOf = (r: Room, pid: string): Player | undefined => {
@@ -67,7 +78,7 @@ export function attachGameServer(io: Server, store: AuthStore, opts: GameServerO
       .filter((r) => !r.guestId)
       .map((r) => {
         const host = r.profiles[otherSide(r.openSide)];
-        return { id: r.id, hostName: host?.nickname ?? "?", hostAvatar: host?.avatar ?? "wP", openSide: r.openSide };
+        return { id: r.id, hostName: host?.nickname ?? "?", hostAvatar: host?.avatar ?? "wP", openSide: r.openSide, mode: r.mode };
       });
     return { players: ps, rooms: rs };
   }
@@ -79,7 +90,46 @@ export function attachGameServer(io: Server, store: AuthStore, opts: GameServerO
     return { roomId: room.id, mySide: side, opponent: opp, state: room.state, history: room.history, reconnected };
   }
 
+  function draftStart(room: Room, seat: Side, reconnected = false): DraftStartMsg | null {
+    const opp = room.profiles[otherSide(seat)];
+    if (!opp || !room.draft) return null;
+    return { roomId: room.id, mySide: tSideOfSeat(seat), opponent: opp, draft: room.draft, deadline: room.deadline, serverNow: Date.now(), reconnected };
+  }
+
+  /** BP / 布阵阶段的步骤计时:超时由服务器代为操作(禁用→空过,选择/布阵→随机) */
+  function scheduleDraft(room: Room): void {
+    if (room.draftTimer) clearTimeout(room.draftTimer);
+    room.draftTimer = undefined;
+    room.deadline = undefined;
+    const d = room.draft;
+    if (!d || d.game.result || d.phase === "play") return;
+    room.deadline = Date.now() + draftStepMs;
+    room.draftTimer = setTimeout(() => {
+      room.draftTimer = undefined;
+      if (!rooms.has(room.id) || !room.draft) return;
+      const who = tk.actor(room.draft);
+      const a = tk.autoAction(room.draft);
+      if (who && a) {
+        try { room.draft = tk.applyDraft(room.draft, who, a); } catch (err) { console.error("[chess-shogi] auto draft action failed:", err); }
+      }
+      scheduleDraft(room);
+      broadcastState(room);
+    }, draftStepMs);
+  }
+
   function startGame(room: Room): void {
+    if (room.mode === "draft") {
+      room.draft = tk.newDraft();
+      room.rematchVotes.clear();
+      scheduleDraft(room);
+      (["chess", "shogi"] as Side[]).forEach((seat) => {
+        const pid = room.sides[seat];
+        const msg = draftStart(room, seat);
+        if (pid && msg) sendTo(players.get(pid), EV.draftStart, msg);
+      });
+      broadcastLobby();
+      return;
+    }
     room.state = createInitialState();
     room.history = [];
     room.rematchVotes.clear();
@@ -92,17 +142,26 @@ export function attachGameServer(io: Server, store: AuthStore, opts: GameServerO
   }
 
   function broadcastState(room: Room): void {
+    if (room.mode === "draft") {
+      if (!room.draft) return;
+      const msg: DraftStateMsg = { draft: room.draft, deadline: room.deadline, serverNow: Date.now() };
+      (["chess", "shogi"] as Side[]).forEach((seat) => {
+        const pid = room.sides[seat];
+        if (pid) sendTo(players.get(pid), EV.draftState, msg);
+      });
+      return;
+    }
     (["chess", "shogi"] as Side[]).forEach((side) => {
       const pid = room.sides[side];
       if (pid) sendTo(players.get(pid), EV.gameState, { state: room.state });
     });
   }
 
-  function makeRoom(host: Player, hostSide: Side, guest?: Player): Room {
+  function makeRoom(host: Player, hostSide: Side, guest?: Player, mode: GameMode = "fusion"): Room {
     const id = newRoomId();
     const room: Room = {
       id, hostId: host.id, openSide: otherSide(hostSide),
-      sides: {}, profiles: {}, state: createInitialState(), history: [], rematchVotes: new Set(),
+      sides: {}, profiles: {}, state: createInitialState(), history: [], rematchVotes: new Set(), mode,
     };
     room.sides[hostSide] = host.id; room.profiles[hostSide] = host.profile!;
     host.roomId = id;
@@ -123,9 +182,12 @@ export function attachGameServer(io: Server, store: AuthStore, opts: GameServerO
     if (!room) return;
     const mySide = sideOf(room, p.id);
     if (mySide && isActive(room)) {
-      room.state = { ...room.state, result: { kind: "win", winner: otherSide(mySide), reason: "abandon" } };
+      if (room.mode === "draft" && room.draft) room.draft = tk.resignDraft(room.draft, tSideOfSeat(mySide), "abandon");
+      else room.state = { ...room.state, result: { kind: "win", winner: otherSide(mySide), reason: "abandon" } };
+      scheduleDraft(room);
       broadcastState(room);
     }
+    if (room.draftTimer) { clearTimeout(room.draftTimer); room.draftTimer = undefined; }
     const other = opponentOf(room, p.id);
     if (other) {
       sendTo(other, EV.opponentLeft);
@@ -167,8 +229,13 @@ export function attachGameServer(io: Server, store: AuthStore, opts: GameServerO
       const room = player.roomId ? rooms.get(player.roomId) : undefined;
       const side = room ? sideOf(room, player.id) : null;
       if (room && side && room.guestId) {
-        const msg = startMsg(room, side, true);
-        if (msg) socket.emit(EV.gameStart, msg);
+        if (room.mode === "draft") {
+          const msg = draftStart(room, side, true);
+          if (msg) socket.emit(EV.draftStart, msg);
+        } else {
+          const msg = startMsg(room, side, true);
+          if (msg) socket.emit(EV.gameStart, msg);
+        }
         const status: OpponentStatusMsg = { connected: true };
         sendTo(opponentOf(room, player.id), EV.opponentStatus, status);
       }
@@ -231,7 +298,7 @@ export function attachGameServer(io: Server, store: AuthStore, opts: GameServerO
     on(EV.createRoom, (d) => {
       if (!player.authed || player.roomId) return;
       const s = d.side === "chess" || d.side === "shogi" ? d.side : pick<Side>("chess", "shogi");
-      makeRoom(player, s);
+      makeRoom(player, s, undefined, isGameMode(d.mode) ? d.mode : "fusion");
       socket.emit(EV.lobby, lobbySnapshot());
       broadcastLobby();
     });
@@ -247,12 +314,12 @@ export function attachGameServer(io: Server, store: AuthStore, opts: GameServerO
     on(EV.invite, (d) => {
       const t = players.get(str(d.targetId) ?? "");
       if (!player.authed || !t || !t.connected || t.roomId || t.id === player.id) return;
-      t.socket.emit(EV.incomingInvite, { fromId: player.id, fromName: player.profile!.nickname, fromAvatar: player.profile!.avatar });
+      t.socket.emit(EV.incomingInvite, { fromId: player.id, fromName: player.profile!.nickname, fromAvatar: player.profile!.avatar, mode: isGameMode(d.mode) ? d.mode : "fusion" });
     });
     on(EV.acceptInvite, (d) => {
       const host = players.get(str(d.fromId) ?? "");
       if (!player.authed || !host || !host.connected || player.roomId || host.roomId) { socket.emit(EV.errorMsg, "对手已不可用"); return; }
-      const room = makeRoom(host, pick<Side>("chess", "shogi"), player);
+      const room = makeRoom(host, pick<Side>("chess", "shogi"), player, isGameMode(d.mode) ? d.mode : "fusion");
       startGame(room);
     });
     on(EV.declineInvite, (d) => {
@@ -263,7 +330,7 @@ export function attachGameServer(io: Server, store: AuthStore, opts: GameServerO
     on(EV.move, (d) => {
       if (!player.roomId) return;
       const room = rooms.get(player.roomId);
-      if (!room || !isActive(room)) return;
+      if (!room || !isActive(room) || room.mode !== "fusion") return;
       const mySide = sideOf(room, player.id);
       if (!mySide || mySide !== room.state.turn) { socket.emit(EV.errorMsg, "还没轮到你"); return; }
       const action = d.action as Action;
@@ -272,17 +339,32 @@ export function attachGameServer(io: Server, store: AuthStore, opts: GameServerO
       room.history.push(action);
       broadcastState(room);
     });
+    on(EV.draftAction, (d) => {
+      const room = player.roomId ? rooms.get(player.roomId) : undefined;
+      if (!room || !isActive(room) || room.mode !== "draft" || !room.draft) return;
+      const seat = sideOf(room, player.id);
+      if (!seat) return;
+      if (!tk.isDraftActionShape(d.action)) { socket.emit(EV.errorMsg, "无效操作"); return; }
+      const side = tSideOfSeat(seat);
+      const err = tk.draftError(room.draft, side, d.action);
+      if (err) { socket.emit(EV.errorMsg, err); return; }
+      try { room.draft = tk.applyDraft(room.draft, side, d.action); }
+      catch (e) { socket.emit(EV.errorMsg, e instanceof Error ? e.message : "非法操作"); return; }
+      scheduleDraft(room);
+      broadcastState(room);
+    });
     on(EV.resign, () => {
       const room = player.roomId ? rooms.get(player.roomId) : undefined;
       if (!room || !isActive(room)) return;
       const mySide = sideOf(room, player.id);
       if (!mySide) return;
-      room.state = { ...room.state, result: { kind: "win", winner: otherSide(mySide), reason: "resign" } };
+      if (room.mode === "draft" && room.draft) { room.draft = tk.resignDraft(room.draft, tSideOfSeat(mySide)); scheduleDraft(room); }
+      else room.state = { ...room.state, result: { kind: "win", winner: otherSide(mySide), reason: "resign" } };
       broadcastState(room);
     });
     on(EV.rematch, () => {
       const room = player.roomId ? rooms.get(player.roomId) : undefined;
-      if (!room || !room.guestId || !room.state.result) return;
+      if (!room || !room.guestId || !finished(room)) return;
       room.rematchVotes.add(player.id);
       const other = opponentOf(room, player.id);
       if (other && room.rematchVotes.has(other.id)) { startGame(room); return; }

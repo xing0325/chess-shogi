@@ -5,6 +5,7 @@
   align-items: center;
   gap: 12px;
 }
+.online--wide { width: min(1400px, 100%); }
 .online__hint { color: #cbb88e; padding: 30px; }
 
 .online__me {

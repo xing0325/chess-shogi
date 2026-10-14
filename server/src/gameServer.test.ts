@@ -6,7 +6,7 @@ import { Server } from "socket.io";
 import { io as Client, type Socket } from "socket.io-client";
 import { attachGameServer } from "./gameServer";
 import { AuthStore } from "./auth";
-import { EV, type GameStartMsg, type GameState, type LobbySnapshot } from "@cs/shared";
+import { EV, type GameStartMsg, type GameState, type LobbySnapshot, type DraftStartMsg, type DraftStateMsg } from "@cs/shared";
 
 describe("game server (两客户端联机)", () => {
   let httpServer: http.Server;
@@ -15,7 +15,7 @@ describe("game server (两客户端联机)", () => {
   beforeAll(async () => {
     httpServer = http.createServer();
     const io = new Server(httpServer, { cors: { origin: "*" } });
-    attachGameServer(io, new AuthStore(os.tmpdir()), { graceMs: 400 });
+    attachGameServer(io, new AuthStore(os.tmpdir()), { graceMs: 400, draftStepMs: 120 });
     await new Promise<void>((r) => httpServer.listen(0, r));
     port = (httpServer.address() as AddressInfo).port;
   });
@@ -79,22 +79,23 @@ describe("game server (两客户端联机)", () => {
     a.close(); b.close();
   }, 20000);
   /** 两个游客开局,返回双方 socket、会话 id 和 gameStart 消息(甲执国象) */
-  async function startPair(tag: string) {
+  async function startPair(tag: string, mode: "fusion" | "draft" = "fusion") {
     const a = connect(), b = connect();
     const [aid, bid] = await Promise.all([once<string>(a, EV.sessionId), once<string>(b, EV.sessionId)]);
     a.emit(EV.authGuest, { nickname: "甲" + tag, avatar: "wP" });
     b.emit(EV.authGuest, { nickname: "乙" + tag, avatar: "FU" });
     await Promise.all([once(a, EV.authResult), once(b, EV.authResult)]);
-    const aStart = once<GameStartMsg>(a, EV.gameStart);
-    const bStart = once<GameStartMsg>(b, EV.gameStart);
-    a.emit(EV.createRoom, { side: "chess" });
+    const startEv = mode === "draft" ? EV.draftStart : EV.gameStart;
+    const aStart = once<DraftStartMsg>(a, startEv);
+    const bStart = once<DraftStartMsg>(b, startEv);
+    a.emit(EV.createRoom, { side: "chess", mode });
     const snap = await new Promise<LobbySnapshot>((res) => {
       const h = (s: LobbySnapshot) => { const r = s.rooms.find((x) => x.hostName === "甲" + tag); if (r) { b.off(EV.lobby, h); res({ ...s, rooms: [r] }); } };
       b.on(EV.lobby, h);
     });
     b.emit(EV.joinRoom, { roomId: snap.rooms[0].id });
-    await Promise.all([aStart, bStart]);
-    return { a, b, aid, bid };
+    const [aMsg, bMsg] = await Promise.all([aStart, bStart]);
+    return { a, b, aid, bid, aMsg, bMsg };
   }
   const e2e4 = { type: "move", from: { file: 4, rank: 7 }, to: { file: 4, rank: 5 } };
 
@@ -158,5 +159,44 @@ describe("game server (两客户端联机)", () => {
     b.emit(EV.rematch);
     expect((await again).state.result).toBeUndefined();
     a.close(); b.close();
+  }, 20000);
+
+  it("大局选将:BP 联机、越权被拒、超时自动操作直到开局", async () => {
+    const { a, b, aMsg, bMsg } = await startPair("d", "draft");
+    expect(aMsg.mySide).toBe("sente");
+    expect(bMsg.mySide).toBe("gote");
+    expect(aMsg.draft.pool.length).toBe(24);
+    expect(aMsg.deadline).toBeGreaterThan(aMsg.serverNow);
+    const errs: string[] = [];
+    b.on(EV.errorMsg, (m: string) => errs.push(m));
+    b.emit(EV.draftAction, { action: { type: "ban", kind: aMsg.draft.pool[0] } }); // 不是红方的回合
+    b.emit(EV.draftAction, { action: { type: "pick", kind: 42 } });                 // 畸形
+    const banned = once<DraftStateMsg>(b, EV.draftState);
+    a.emit(EV.draftAction, { action: { type: "ban", kind: aMsg.draft.pool[0] } });
+    const st = await banned;
+    expect(st.draft.step).toBe(1);
+    expect(st.draft.bans.blue).toEqual([aMsg.draft.pool[0]]);
+    expect(errs.length).toBe(2);
+    // 剩下的 19 步 BP + 12 步布阵全部靠超时自动完成
+    const play = await new Promise<DraftStateMsg>((res) => b.on(EV.draftState, (m: DraftStateMsg) => { if (m.draft.phase === "play") res(m); }));
+    expect(play.deadline).toBeUndefined();
+    expect(play.draft.picks.blue.length).toBe(5);
+    expect(play.draft.game.board.filter(Boolean).length).toBe(12);
+    // 认输
+    const over = once<DraftStateMsg>(a, EV.draftState);
+    b.emit(EV.resign);
+    expect((await over).draft.game.result).toEqual({ kind: "win", winner: "sente", reason: "resign" });
+    a.close(); b.close();
+  }, 30000);
+
+  it("大局选将:选将途中刷新可接回", async () => {
+    const { a, b, bid } = await startPair("e", "draft");
+    b.close();
+    const b2 = connect(bid);
+    const back = await once<DraftStartMsg>(b2, EV.draftStart);
+    expect(back.reconnected).toBe(true);
+    expect(back.mySide).toBe("gote");
+    expect(back.draft.phase).toBe("draft");
+    a.close(); b2.close();
   }, 20000);
 });

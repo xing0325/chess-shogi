@@ -80,3 +80,5 @@
 .lobby__list .lobby__meta { margin-left: auto; }
 .lobby__act:hover:not(:disabled) { background: #5c4928; }
 .lobby__act:disabled { opacity: 0.45; cursor: default; }
+.lobby__mode { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #4a3a22; color: #ecdcbd; white-space: nowrap; }
+.lobby__mode--draft { background: linear-gradient(90deg, #2d5d9a, #9a2d2d); color: #fff; }

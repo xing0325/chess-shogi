@@ -1,7 +1,7 @@
 """Build shared/src/taikyoku/pieces.data.ts from the compiled Wikipedia data.
 
 Pipeline (run from this directory):
-  curl -s "https://en.wikipedia.org/w/index.php?title=Taikyoku_shogi&action=raw" > taikyoku_en.wiki
+  curl -s "https://en.wikipedia.org/w/index.php?oldid=1378938316&action=raw" > taikyoku_en.wiki   # 固定版本,2026-10-07
   python3 parse_wiki.py      # -> promotions.json, entries.json
   python3 compile_betza.py   # -> compiled.json (+ cross-check against the diagrams)
   python3 build_data.py      # -> ../shared/src/taikyoku/pieces.data.ts
